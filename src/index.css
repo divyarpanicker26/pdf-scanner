@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light;
+  --bg: #efeae1;
+  --ink: #1d1a16;
+  --muted: #655e55;
+  --panel: #fffdf9;
+  --line: #e4d8c8;
+  --accent: #1d6b4a;
+  --accent-strong: #14553a;
+  --accent-soft: #e5f3ec;
+  --warn: #8d3e16;
+  --warn-soft: #f8ebe3;
+  --danger: #8f2d2d;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button, input {
+  font: inherit;
+  color: inherit;
+}
+
+button { cursor: pointer; }
+
+h1, h2, p { margin: 0; }
+
+#root { min-height: 100vh; }
