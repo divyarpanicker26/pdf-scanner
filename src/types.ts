@@ -2,7 +2,6 @@ export type FieldSpec = {
   id: string
   key: string
   label: string
-  pattern: string
   multiline: boolean
 }
 

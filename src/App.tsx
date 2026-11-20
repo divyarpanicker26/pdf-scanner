@@ -296,17 +296,6 @@ export default function App() {
                   </label>
                 </div>
                 <label>
-                  Regular expression, optional
-                  <input
-                    type="text"
-                    value={field.pattern}
-                    placeholder="Case Number:\s*(SR-\d+)"
-                    spellCheck={false}
-                    aria-label={`Regular expression for ${field.key || 'new field'}`}
-                    onChange={(event) => updateField(field.id, { pattern: event.target.value })}
-                  />
-                </label>
-                <label>
                   Override value, optional
                   <input
                     type="text"
@@ -364,7 +353,7 @@ export default function App() {
                 setCopied(false)
                 setFields((current) => [
                   ...current,
-                  { id: crypto.randomUUID(), key: '', label: '', pattern: '', multiline: false },
+                  { id: crypto.randomUUID(), key: '', label: '', multiline: false },
                 ])
               }}
             >
@@ -372,7 +361,7 @@ export default function App() {
             </button>
           </div>
           <p className="help">
-            With no regular expression, the value is the text after the label. A regex picks a piece of that text. Use Override to type a different value than the PDF.
+            The value is the text after the label. Use Override to type a different value than the PDF.
           </p>
         </section>
       </div>

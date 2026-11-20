@@ -17,21 +17,8 @@ export function extractValues(text: string, fields: FieldSpec[]): ExtractionResu
     }
     seen.add(key)
 
-    const pattern = spec.pattern.trim()
-    if (pattern) {
-      try {
-        const expression = new RegExp(pattern, 'im')
-        const match = text.match(expression)
-        values[key] = clean(match?.[1] ?? match?.[0] ?? '')
-      } catch {
-        fieldErrors[spec.id] = 'This regular expression is invalid.'
-        values[key] = null
-      }
-      continue
-    }
-
     if (!spec.label.trim()) {
-      fieldErrors[spec.id] = 'Add a label or a regular expression.'
+      fieldErrors[spec.id] = 'Add a label in the document.'
       values[key] = null
       continue
     }

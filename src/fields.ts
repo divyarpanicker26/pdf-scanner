@@ -105,7 +105,12 @@ export function loadFields(): FieldSpec[] {
     if (!raw) return suggestedFields()
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed) || parsed.length === 0) return suggestedFields()
-    const fields = parsed.filter(isField)
+    const fields = parsed.filter(isField).map((item) => ({
+      id: item.id,
+      key: item.key,
+      label: item.label,
+      multiline: item.multiline,
+    }))
     return fields.length > 0 ? fields : suggestedFields()
   } catch {
     return suggestedFields()
@@ -125,7 +130,6 @@ function field(key: string, label: string, multiline: boolean): FieldSpec {
     id: crypto.randomUUID(),
     key,
     label,
-    pattern: '',
     multiline,
   }
 }
@@ -137,7 +141,6 @@ function isField(value: unknown): value is FieldSpec {
     typeof candidate.id === 'string' &&
     typeof candidate.key === 'string' &&
     typeof candidate.label === 'string' &&
-    typeof candidate.pattern === 'string' &&
     typeof candidate.multiline === 'boolean'
   )
 }

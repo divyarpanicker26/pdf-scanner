@@ -17,7 +17,6 @@ function spec(partial: Partial<FieldSpec> & Pick<FieldSpec, 'key'>): FieldSpec {
   return {
     id: partial.id ?? partial.key,
     label: partial.label ?? '',
-    pattern: partial.pattern ?? '',
     multiline: partial.multiline ?? false,
     key: partial.key,
   }
@@ -41,13 +40,6 @@ describe('extractValues', () => {
       income: '$4,250.00',
       documentDate: 'March 14, 2026',
     })
-  })
-
-  it('uses the first capture group when a regex is set', () => {
-    const { values } = extractValues(form, [
-      spec({ key: 'caseDigits', pattern: 'SR-(\\d+)' }),
-    ])
-    assert.equal(values.caseDigits, '10482')
   })
 
   it('reads a fictional recertification page', () => {
@@ -184,16 +176,16 @@ describe('extractValues', () => {
     assert.equal(overridden.name, 'Alex Rivera')
   })
 
-  it('reports an invalid regex and a duplicate key', () => {
+  it('reports a missing label and a duplicate key', () => {
     const { values, fieldErrors } = extractValues(form, [
       spec({ key: 'name', label: 'Name' }),
       spec({ id: 'second', key: 'name', label: 'Name' }),
-      spec({ id: 'bad', key: 'broken', pattern: '(' }),
+      spec({ id: 'blank', key: 'broken', label: '' }),
     ])
 
     assert.equal(values.name, 'Jordan Hale')
     assert.equal(values.broken, null)
     assert.equal(fieldErrors.second, 'This JSON key is already used.')
-    assert.equal(fieldErrors.bad, 'This regular expression is invalid.')
+    assert.equal(fieldErrors.blank, 'Add a label in the document.')
   })
 })
