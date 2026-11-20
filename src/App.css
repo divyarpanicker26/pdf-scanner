@@ -102,6 +102,24 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: end;
+}
+
+.demo-picker {
+  display: grid;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.demo-picker select {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  min-width: 210px;
 }
 
 .actions { margin-top: 12px; }

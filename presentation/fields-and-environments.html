@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fields, environments, and the code behind the PDF extractor</title>
+<style>
+  :root {
+    --navy: #17284f;
+    --navy-soft: #e8ecf5;
+    --ink: #1c2129;
+    --muted: #5b6372;
+    --line: #d6dbe4;
+    --green: #1f6b4f;
+    --green-soft: #e3f1ea;
+    --amber: #8a5a00;
+    --amber-soft: #fbf0d9;
+    --paper: #ffffff;
+    --bg: #0f1a33;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); font-family: "Segoe UI", system-ui, Helvetica, Arial, sans-serif; color: var(--ink); }
+  .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+  .slide {
+    position: absolute; width: 1280px; height: 720px; background: var(--paper);
+    padding: 56px 72px 48px; display: none; flex-direction: column;
+    transform-origin: center center; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  .slide.active { display: flex; }
+  .kicker { font-size: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); margin-bottom: 12px; }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-size: 52px; line-height: 1.08; font-weight: 600; }
+  h2 { font-family: Georgia, "Times New Roman", serif; font-size: 36px; line-height: 1.15; font-weight: 600; margin-bottom: 22px; }
+  p, li { font-size: 20px; line-height: 1.45; }
+  .lede { font-size: 24px; color: var(--muted); max-width: 920px; margin-top: 18px; line-height: 1.4; }
+  .muted { color: var(--muted); }
+  .small { font-size: 16px; }
+  .footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+  .title-slide { background: var(--navy); color: white; justify-content: center; }
+  .title-slide .kicker { color: #9fd8bf; }
+  .title-slide .lede { color: #c9d3ea; }
+  .title-slide .footer { color: #9aa7c4; border-color: #33467a; }
+  ul.clean { list-style: none; display: grid; gap: 14px; }
+  ul.clean li { padding-left: 30px; position: relative; }
+  ul.clean li::before { content: ""; position: absolute; left: 4px; top: 11px; width: 11px; height: 11px; border-radius: 3px; background: var(--green); }
+  .cols { display: grid; gap: 20px; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; background: #fbfcfe; }
+  .card h3 { font-size: 20px; margin-bottom: 8px; }
+  .card p, .card li { font-size: 17px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 17px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; }
+  .callout { margin-top: 18px; border-left: 5px solid var(--green); background: var(--green-soft); padding: 12px 18px; border-radius: 0 10px 10px 0; font-size: 18px; }
+  .callout.amber { border-color: var(--amber); background: var(--amber-soft); }
+  .nav { position: fixed; bottom: 14px; right: 18px; display: flex; gap: 8px; align-items: center; color: #9aa7c4; font-size: 14px; z-index: 10; }
+  .nav button { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; width: 36px; height: 36px; cursor: pointer; }
+  .progress { position: fixed; left: 0; top: 0; height: 4px; background: #4fbf8f; z-index: 10; }
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { background: white; }
+    .stage { position: static; display: block; }
+    .slide { display: flex !important; position: relative; transform: none !important; box-shadow: none; page-break-after: always; }
+    .nav, .progress { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<main class="stage" id="stage">
+
+  <section class="slide title-slide">
+    <div class="kicker">Technical briefing</div>
+    <h1>How the PDF extractor<br>is built and configured</h1>
+    <p class="lede">What each field means, how to point the same app at a different environment, and which languages the code uses.</p>
+    <div class="footer"><span>Prepared by Divya Radhakrishnan</span><span>November 2026</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Coding languages</div>
+    <h2>The app is TypeScript and React. There is no backend language.</h2>
+    <div class="cols cols-2">
+      <div>
+        <table>
+          <thead><tr><th>Language</th><th>Where it is used</th></tr></thead>
+          <tbody>
+            <tr><td><b>TypeScript</b></td><td>The extractor, PDF reader, and field lists in <span class="mono">src/</span></td></tr>
+            <tr><td><b>React</b></td><td>The screen staff see: drop zone, field editor, JSON</td></tr>
+            <tr><td><b>CSS</b></td><td>Layout and styling</td></tr>
+            <tr><td><b>JavaScript</b></td><td>Node scripts that build sample PDFs and publish the site</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <table>
+          <thead><tr><th>Library</th><th>Job</th></tr></thead>
+          <tbody>
+            <tr><td><b>Vite</b></td><td>Builds the static website</td></tr>
+            <tr><td><b>PDF.js</b></td><td>Reads text from a typed PDF</td></tr>
+            <tr><td><b>Tesseract.js</b></td><td>Reads scanned pages (OCR)</td></tr>
+            <tr><td><b>pdf-lib</b></td><td>Creates the fictional demo PDFs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="callout">Staff use a web page. The PDF is read in the browser. No Java, .NET, Python, or database is required for this prototype.</div>
+    <div class="footer"><span>Stack</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Design</div>
+    <h2>One page in the browser does the whole job</h2>
+    <div class="cols cols-3">
+      <div class="card"><h3>1. Open the PDF</h3><p><span class="mono">pdfText.ts</span> uses PDF.js. If a page has almost no text, Tesseract.js reads the image.</p></div>
+      <div class="card"><h3>2. Match the fields</h3><p><span class="mono">extract.ts</span> looks for each label or pattern and returns a value or “missing.”</p></div>
+      <div class="card"><h3>3. Staff check</h3><p><span class="mono">App.tsx</span> shows the page preview and JSON. Copy or download. Nothing is uploaded.</p></div>
+    </div>
+    <p class="small muted" style="margin-top:22px">Field lists live in <span class="mono">fields.ts</span>. Types live in <span class="mono">types.ts</span>. Sample PDFs are built by <span class="mono">scripts/make-nycha-samples.mjs</span>.</p>
+    <div class="footer"><span>How the code is split</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Each field on the screen</div>
+    <h2>Four settings tell the tool what to pull out</h2>
+    <table>
+      <thead><tr><th>Setting</th><th>What it is</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><b>JSON key</b></td><td>The name of the value in the result. Use this later if you send data to Siebel.</td><td><span class="mono">caseNumber</span></td></tr>
+        <tr><td><b>Label in the document</b></td><td>The printed words to find, usually at the start of a line, then a colon.</td><td><span class="mono">Case Number</span></td></tr>
+        <tr><td><b>Regular expression</b></td><td>Optional. A search pattern. If this is filled in, it replaces the label rule. The first group in parentheses is the value.</td><td><span class="mono">SR-(\d+)</span> keeps only the digits</td></tr>
+        <tr><td><b>Continue on the next lines</b></td><td>Keeps following lines until a blank line or another label. Used for addresses.</td><td>Street, apartment, city on three lines</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">A field also has a hidden id so the list can be edited. Duplicate JSON keys are rejected. An invalid pattern is reported on that field.</div>
+    <div class="footer"><span>Field settings</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">How a value is found</div>
+    <h2>Label first. Pattern only if you set one.</h2>
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>If the pattern box is empty</h3>
+        <p>The tool looks for a line that starts with the label, ignoring capital letters. The text after the colon is the value. If that line is empty, it takes the next line. If “continue on the next lines” is on, it joins extra lines with commas.</p>
+      </div>
+      <div class="card">
+        <h3>If a regular expression is set</h3>
+        <p>The label is ignored. The pattern is matched against the whole PDF text. The first capture group becomes the JSON value. If there is no group, the whole match is used.</p>
+      </div>
+    </div>
+    <p class="small muted" style="margin-top:20px">Example: the PDF says <b>Case Number: NYC-0001842</b>. JSON key <span class="mono">caseNumber</span> and label <span class="mono">Case Number</span> produce <span class="mono">"caseNumber": "NYC-0001842"</span>.</p>
+    <div class="footer"><span>Matching rules</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Recertification sample</div>
+    <h2>Fields on the annual review form</h2>
+    <table>
+      <thead><tr><th>JSON key</th><th>Label on the PDF</th><th>Demo value</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">name</span></td><td>Name</td><td>Maria Santos</td><td>Head of household</td></tr>
+        <tr><td><span class="mono">caseNumber</span></td><td>Case Number</td><td>NYC-0001842</td><td>Used to find the household later</td></tr>
+        <tr><td><span class="mono">accountNumber</span></td><td>Account Number</td><td>NYC-0001842</td><td>Same as case number on this sample</td></tr>
+        <tr><td><span class="mono">development</span></td><td>Development</td><td>Sample Houses</td><td>Property name</td></tr>
+        <tr><td><span class="mono">address</span></td><td>Address</td><td>100 Sample Court, Apt 4B, Brooklyn</td><td>Multiline is on</td></tr>
+        <tr><td><span class="mono">householdSize</span></td><td>Household Size</td><td>3</td><td></td></tr>
+        <tr><td><span class="mono">income</span></td><td>Income</td><td>$3,260.00</td><td>Monthly household total</td></tr>
+        <tr><td><span class="mono">documentDate</span></td><td>Document Date</td><td>September 18, 2026</td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="footer"><span>Worked example</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Other demo documents</div>
+    <h2>Each document type has its own field list</h2>
+    <table>
+      <thead><tr><th>Demo PDF</th><th>Extra JSON keys</th><th>What they map from</th></tr></thead>
+      <tbody>
+        <tr><td>Income affidavit</td><td><span class="mono">employer, grossWages, ssiAmount, publicAssistance</span></td><td>Employer, Gross Wages, SSI Amount, Public Assistance</td></tr>
+        <tr><td>Asset declaration</td><td><span class="mono">bankName, accountType, balance, savingsBalance</span></td><td>Bank Name, Account Type, Balance, Savings Balance</td></tr>
+        <tr><td>Housing application</td><td><span class="mono">applicationNumber, householdSize, income</span></td><td>Application Number, Household Size, Income</td></tr>
+        <tr><td>Household change</td><td><span class="mono">requestType, memberName, relation</span></td><td>Request Type, Member Name, Relation</td></tr>
+        <tr><td>Vendor invoice</td><td><span class="mono">vendorName, invoiceNumber, purchaseOrder, invoiceAmount</span></td><td>Vendor Name, Invoice Number, Purchase Order, Invoice Amount</td></tr>
+        <tr><td>Pay statement</td><td><span class="mono">employer, payPeriod, grossWages, netPay</span></td><td>Employer, Pay Period, Gross Wages, Net Pay</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">Changing a document type is a field-list change, not a new program. Staff can also add or edit rows on screen.</div>
+    <div class="footer"><span>Field lists</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Environments</div>
+    <h2>Same app. Different place it runs.</h2>
+    <table>
+      <thead><tr><th>Setting</th><th>Local machine</th><th>GitHub Pages demo</th><th>NYCHA test</th><th>NYCHA production</th></tr></thead>
+      <tbody>
+        <tr><td><b>Where the page is hosted</b></td><td>localhost</td><td>github.io/pdf-scanner</td><td>Approved test server</td><td>Approved production server</td></tr>
+        <tr><td><b>PDFs used</b></td><td>Fictional samples</td><td>Fictional samples</td><td>De-identified real forms</td><td>Live inbound documents</td></tr>
+        <tr><td><b>Siebel / system of record</b></td><td>Not connected</td><td>Not connected</td><td>Test Siebel URL</td><td>Production Siebel URL</td></tr>
+        <tr><td><b>OCR language files</b></td><td>Downloaded on first use</td><td>Downloaded on first use</td><td>Bundled on the server</td><td>Bundled on the server</td></tr>
+        <tr><td><b>Who may use it</b></td><td>Developer</td><td>Public demo only</td><td>Pilot staff with SSO</td><td>Intake staff with SSO</td></tr>
+      </tbody>
+    </table>
+    <div class="callout amber">The prototype has no application server. “Server details” means where the website is hosted and, later, which Siebel URL it may call. Do not put a production Siebel address in the public demo.</div>
+    <div class="footer"><span>Environments</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Updating server details</div>
+    <h2>Change configuration. Do not rewrite the extractor.</h2>
+    <div class="cols cols-2">
+      <div>
+        <h3 style="font-size:22px;margin-bottom:12px">What you would set per environment</h3>
+        <ul class="clean">
+          <li><b>Website address</b> — local, GitHub Pages, or NYCHA hosting.</li>
+          <li><b>API or Siebel URL</b> — empty today; test URL in UAT; production URL only in prod.</li>
+          <li><b>Environment name</b> — <span class="mono">local</span>, <span class="mono">demo</span>, <span class="mono">test</span>, or <span class="mono">prod</span>.</li>
+          <li><b>OCR files</b> — download from the internet, or serve them from the same host.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>How to update them</h3>
+        <p style="margin-bottom:10px">Vite reads values that start with <span class="mono">VITE_</span> at build time. Example:</p>
+        <p class="mono small" style="margin-bottom:10px">VITE_ENV=test<br>VITE_API_URL=https://siebel-test.nycha.example/api<br>VITE_OCR_LANG_PATH=/tessdata</p>
+        <p>Build once for each environment. The TypeScript in <span class="mono">extract.ts</span> and <span class="mono">pdfText.ts</span> stays the same. Only the URL and environment name change.</p>
+      </div>
+    </div>
+    <div class="footer"><span>Configuration</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">If the PDF itself differs by environment</div>
+    <h2>Point the field list at that environment’s form</h2>
+    <ul class="clean">
+      <li>If test and production use the <b>same labels</b>, keep one field list. Only the hosting and Siebel URL change.</li>
+      <li>If a test form uses different wording, for example “Account No.” instead of “Account Number,” change the <b>label</b> on that field. Leave the JSON key as <span class="mono">accountNumber</span> so Siebel still receives the same name.</li>
+      <li>If a whole packet exists only in one environment, add a field list in <span class="mono">fields.ts</span> (or load it from a JSON file) and choose it from the Demo PDF list.</li>
+      <li>Do not put passwords, Siebel credentials, or production URLs inside the PDF or in GitHub Pages.</li>
+    </ul>
+    <div class="callout">The JSON key is the contract with Siebel. The label is what is printed on that environment’s PDF. Keep those two ideas separate.</div>
+    <div class="footer"><span>Forms vs environments</span><span class="page-num"></span></div>
+  </section>
+
+  <section class="slide">
+    <div class="kicker">Summary</div>
+    <h2>What to remember</h2>
+    <ul class="clean">
+      <li>The code is <b>TypeScript and React</b>, with PDF.js and Tesseract.js, built by Vite into a static website.</li>
+      <li>Each field is a <b>JSON key</b>, a <b>label</b>, an optional <b>pattern</b>, and a <b>multiline</b> flag.</li>
+      <li>There is <b>no application server</b> today. PDFs stay in the browser.</li>
+      <li>To move from demo to NYCHA test or production, update <b>hosting and API URLs</b> in environment settings. Do not rewrite the matching code.</li>
+      <li>If a form’s wording changes, update the label. Keep the JSON key stable for Siebel.</li>
+    </ul>
+    <div class="footer"><span>Thank you</span><span class="page-num"></span></div>
+  </section>
+
+</main>
+<div class="nav">
+  <button type="button" id="prev" aria-label="Previous slide">&larr;</button>
+  <span id="count"></span>
+  <button type="button" id="next" aria-label="Next slide">&rarr;</button>
+</div>
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'))
+  const count = document.getElementById('count')
+  const progress = document.getElementById('progress')
+  let index = Math.min(Math.max(parseInt(location.hash.slice(1), 10) - 1 || 0, 0), slides.length - 1)
+  slides.forEach((slide, i) => {
+    const slot = slide.querySelector('.page-num')
+    if (slot) slot.textContent = String(i + 1)
+  })
+  function fit() {
+    const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.94
+    for (const slide of slides) slide.style.transform = `scale(${scale})`
+  }
+  function show(next) {
+    index = Math.min(Math.max(next, 0), slides.length - 1)
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === index))
+    count.textContent = `${index + 1} / ${slides.length}`
+    progress.style.width = `${((index + 1) / slides.length) * 100}%`
+    history.replaceState(null, '', `#${index + 1}`)
+  }
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(index + 1) }
+    if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(index - 1) }
+    if (event.key === 'Home') show(0)
+    if (event.key === 'End') show(slides.length - 1)
+    if (event.key === 'f') document.documentElement.requestFullscreen?.()
+  })
+  document.getElementById('prev').addEventListener('click', () => show(index - 1))
+  document.getElementById('next').addEventListener('click', () => show(index + 1))
+  window.addEventListener('resize', fit)
+  fit()
+  show(index)
+</script>
+</body>
+</html>

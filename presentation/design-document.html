@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design document: browser-based replacement for PSIGEN</title>
+<style>
+  :root { --ink: #1c2129; --muted: #4d5563; --line: #d5dbe3; --navy: #17284f; --green: #1f6b4f; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    max-width: 820px;
+    padding: 48px 56px 72px;
+    color: var(--ink);
+    font: 16px/1.55 "Segoe UI", system-ui, Helvetica, Arial, sans-serif;
+  }
+  header { border-bottom: 3px solid var(--navy); padding-bottom: 18px; margin-bottom: 28px; }
+  .kicker { margin: 0 0 8px; color: var(--green); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 { margin: 0 0 10px; font-family: Georgia, "Times New Roman", serif; font-size: 34px; line-height: 1.15; font-weight: 600; }
+  .meta { margin: 0; color: var(--muted); font-size: 14px; }
+  h2 { margin: 32px 0 10px; font-family: Georgia, "Times New Roman", serif; font-size: 24px; font-weight: 600; }
+  h3 { margin: 20px 0 6px; font-size: 17px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; background: #f3f5f8; padding: 0 4px; }
+  .note { border-left: 4px solid var(--navy); background: #f4f6fa; padding: 10px 14px; margin: 12px 0 16px; }
+  .status { color: var(--muted); font-size: 14px; }
+  @media print {
+    body { max-width: none; padding: 0; }
+    h2 { break-after: avoid; }
+    table, .note { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <p class="kicker">Design document</p>
+  <h1>Browser-based replacement for PSIGEN</h1>
+  <p class="meta">Prepared by Divya Radhakrishnan · October 2026 · Status: working prototype</p>
+</header>
+
+<h2>1. Purpose</h2>
+<p>NYCHA processes inbound documents in PSIGEN. PSIGEN is a licensed product that must be installed on each computer, and a license limits how many people and machines can use it. Adding a person or a workstation means another install and another license.</p>
+<p>This document describes a browser tool that does the same intake job without an install and without a license. Staff open a PDF, name the fields they need, and receive those values as structured data they can check and copy. Annual recertification is the worked example. The tool is not limited to that process.</p>
+
+<h2>2. Problem</h2>
+<p>Inbound documents arrive from residents, applicants, vendors, and partners, often as PDFs or scans. Staff use PSIGEN to read them and move the facts into the system of record.</p>
+<ul>
+  <li>PSIGEN must be installed on every computer that uses it.</li>
+  <li>A license caps how many people and machines can use it. When the licenses are used up, the next person or office waits.</li>
+  <li>Updates are applied to each installation.</li>
+  <li>Staff can work only on machines where PSIGEN is set up.</li>
+</ul>
+<p>The prototype does not yet replace every PSIGEN feature. Scanning hardware, exports, and other features staff rely on still need to be listed with the people who use PSIGEN today.</p>
+
+<h2>3. Goals and non-goals</h2>
+<h3>Goals</h3>
+<ul>
+  <li>Read a PDF in the browser and return named fields as structured data.</li>
+  <li>Let staff define a field setup per document type, without a developer.</li>
+  <li>Show the original page so staff can check each value before it is used.</li>
+  <li>Keep the document on the computer. Do not upload it.</li>
+  <li>Run from a web address, with nothing to install and no license to assign.</li>
+</ul>
+<h3>Non-goals for this prototype</h3>
+<ul>
+  <li>Connecting to a NYCHA system of record. Staff still paste checked values in.</li>
+  <li>Deciding eligibility, calculating rent, or approving a case.</li>
+  <li>User accounts, roles, or an audit trail.</li>
+  <li>Replacing PSIGEN features that have not been compared yet, such as scanning and exports.</li>
+</ul>
+
+<h2>4. Users</h2>
+<table>
+  <thead><tr><th>Who</th><th>What they do with the tool</th></tr></thead>
+  <tbody>
+    <tr><td>Intake staff</td><td>Open a document, confirm the extracted values, and copy or download the result.</td></tr>
+    <tr><td>A business owner for a document type</td><td>Set the field list once: the label on the form and the name of the value.</td></tr>
+    <tr><td>IT and security</td><td>Review hosting and privacy before any real document is used.</td></tr>
+  </tbody>
+</table>
+
+<h2>5. What the prototype does</h2>
+<p>The staff member drops a PDF on the page or chooses a file. The tool reads every page, shows a preview of the first six pages, and fills in the fields. The result is JSON the staff member can copy or download. A field the tool cannot find is marked missing rather than left blank without notice.</p>
+<p>Three fictional sample packets are built in, so the flow can be shown without real tenant data:</p>
+<ul>
+  <li>Annual recertification of family income and composition.</li>
+  <li>Affidavit of income.</li>
+  <li>Declaration of assets.</li>
+</ul>
+<p>Opening one of those samples also loads the matching field list. Other inbound documents use the same screen. A person adds the labels for that document type. Candidate processes, still to be confirmed with each business area, include applications, income and benefit proof, household change requests, vendor paperwork, and resident correspondence.</p>
+<p class="note">The samples are marked “not an official NYCHA form.” The household, account number, income, and balances are fictional.</p>
+
+<h2>6. How a document is read</h2>
+<p>Reading happens entirely in the browser. There is no application server.</p>
+<ol>
+  <li>The file must be a PDF and must be 25 MB or smaller. A password-protected PDF is rejected with a message to remove the password.</li>
+  <li>Each page is read with PDF.js. Text items are ordered into lines by their position on the page.</li>
+  <li>If a page has almost no text (fewer than 25 non-space characters), that page is treated as a scan. It is drawn to an image and read with English OCR (Tesseract.js). The first OCR run downloads the English language data.</li>
+  <li>Pages are joined into one text block. The result records whether OCR was used.</li>
+  <li>A JPEG preview is kept for the first six pages. Later pages are still included in the extraction.</li>
+</ol>
+
+<h2>7. How a field is found</h2>
+<p>Each field has a JSON key, a label as printed on the document, an optional regular expression, and a flag for values that continue onto the next lines. The address on the recertification sample is the multiline case: three printed lines become one value.</p>
+<table>
+  <thead><tr><th>Rule</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td>Label</td><td>The line must start with the label, then an optional colon or hyphen, then the value. Matching ignores letter case.</td></tr>
+    <tr><td>Value on the next line</td><td>If the label line has no value, the next non-empty line is used.</td></tr>
+    <tr><td>Multiline</td><td>Following lines are kept until a blank line or another label. They are joined with commas.</td></tr>
+    <tr><td>Regular expression</td><td>When a pattern is set, it replaces the label rule. The first capture group is the value. If there is no capture group, the whole match is used.</td></tr>
+    <tr><td>Errors</td><td>An empty key, a repeated key, an invalid pattern, or a field with neither a label nor a pattern is reported on that field. A value that is not in the document is returned as missing.</td></tr>
+  </tbody>
+</table>
+<p>Field setups are remembered in that browser only (<code>localStorage</code>). The document and the extracted values are not saved. “Restore suggested” clears the saved setup and returns the default five fields: name, case number, address, income, and document date.</p>
+<p>Built-in setups, loaded with the samples:</p>
+<table>
+  <thead><tr><th>Document</th><th>Fields</th></tr></thead>
+  <tbody>
+    <tr><td>Annual recertification</td><td>Name, case number, account number, development, address, household size, income, document date</td></tr>
+    <tr><td>Affidavit of income</td><td>Name, case number, address, employer, gross wages, SSI amount, public assistance, income, document date</td></tr>
+    <tr><td>Declaration of assets</td><td>Name, case number, address, bank name, account type, checking balance, savings balance, document date</td></tr>
+  </tbody>
+</table>
+
+<h2>8. System design</h2>
+<p>The prototype is a single-page application. The browser is the whole runtime.</p>
+<table>
+  <thead><tr><th>Piece</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td>React page</td><td>File drop, field editor, preview, JSON result, copy, and download.</td></tr>
+    <tr><td>PDF.js</td><td>Opens the PDF, reads the text layer, and draws page previews.</td></tr>
+    <tr><td>Tesseract.js</td><td>English OCR for pages that have almost no text.</td></tr>
+    <tr><td>Field extractor</td><td>Applies the label and pattern rules to the page text. Covered by unit tests.</td></tr>
+    <tr><td>Vite build</td><td>Produces a static site. Relative paths so it can be hosted in a subfolder.</td></tr>
+  </tbody>
+</table>
+<p>There is no database, no login, and no API. A future NYCHA deployment would still be a static site, hosted where IT approves, until a later phase adds a connection to a system of record.</p>
+<pre class="note">Staff computer
+  Browser
+    open PDF  →  read text or OCR  →  match fields  →  staff checks  →  copy or download
+  Nothing leaves the browser.</pre>
+
+<h2>9. Deployment</h2>
+<table>
+  <thead><tr><th>Place</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td>A developer machine (<code>npm run dev</code>)</td><td>Building and demonstrating the prototype, including the NYCHA-style samples and this document.</td></tr>
+    <tr><td>GitHub Pages<br><code>divyarpanicker26.github.io/pdf-scanner</code></td><td>Public demo of the earlier build. It is not approved for real documents, and it does not yet include the recertification samples.</td></tr>
+    <tr><td>NYCHA-approved hosting</td><td>Required before any real document is opened. Not built.</td></tr>
+  </tbody>
+</table>
+<p>Publishing the demo runs <code>npm run deploy</code>, which builds the site and pushes the <code>dist</code> folder to the <code>gh-pages</code> branch. Source code stays on <code>main</code>.</p>
+
+<h2>10. Privacy and security</h2>
+<p>Today the PDF is read in the browser and is not sent to a server. Extracted values are not stored. Only the field setup is stored, and only in that browser.</p>
+<p>That is not yet enough for real tenant, applicant, or vendor documents.</p>
+<ul>
+  <li>Host the page on NYCHA-approved infrastructure. The public GitHub Pages site is for demos with fictional samples only.</li>
+  <li>Bundle the OCR language files with the site. Today the first OCR run downloads them from the internet.</li>
+  <li>Complete an IT security and privacy review before a pilot with real documents.</li>
+  <li>A later phase that writes into a system of record will need accounts, access control, and an audit trail. Those are out of scope for the prototype.</li>
+</ul>
+
+<h2>11. Limits</h2>
+<ul>
+  <li>Tested on fictional recertification samples, not on real NYCHA documents or on a PSIGEN export.</li>
+  <li>Values are found by a label at the start of a line, or by a regular expression. A form laid out as boxes, columns, or handwriting will need a different setup, and some layouts will not extract reliably.</li>
+  <li>Each new document type needs its own field list, then a check against real samples.</li>
+  <li>OCR is English only and is not reliable on handwriting.</li>
+  <li>There is no side-by-side feature comparison with PSIGEN yet. Scanning, batch intake, and exports are examples of features still to confirm.</li>
+  <li>Staff still paste values into the system of record. The tool does not file the document or update a case.</li>
+</ul>
+
+<h2>12. Proposed pilot</h2>
+<p>One office and a few staff. Start with recertification, because those field setups already exist. Then add one document type from another process, to show that a new form is a new field list rather than a new system.</p>
+<p>Staff run the same documents through PSIGEN and the browser tool. Measure:</p>
+<ul>
+  <li>Minutes per document, compared with PSIGEN.</li>
+  <li>Share of fields extracted correctly, compared with PSIGEN.</li>
+  <li>How often staff had to correct a value.</li>
+  <li>How long it takes to set up a new document type.</li>
+  <li>Whether staff can complete the work without an install or a license.</li>
+</ul>
+<p>The pilot uses approved hosting and real forms only after the security review. At the end, leadership decides whether to start replacing PSIGEN, adjust the tool, or stop.</p>
+
+<h2>13. Open questions</h2>
+<ol>
+  <li>Which PSIGEN features do staff rely on besides reading a PDF and copying fields? Scanning, batches, and exports need a list from current users.</li>
+  <li>What is the actual license limit: named users, concurrent users, or machines? The design treats it as a cap. The number is not in this document.</li>
+  <li>Which inbound document types, after recertification, cost the most staff time?</li>
+  <li>Where should a production copy be hosted, and may OCR language data be bundled so the browser never downloads it?</li>
+  <li>If a later phase writes into a system of record, which system, and who confirms a value before it is saved?</li>
+</ol>
+
+<h2>14. References</h2>
+<ul>
+  <li>Source: <code>github.com/divyarpanicker26/pdf-scanner</code></li>
+  <li>Public demo: <code>divyarpanicker26.github.io/pdf-scanner</code></li>
+  <li>Leadership slides: <code>presentation/proposal-to-replace-psigen.pdf</code></li>
+  <li>Fictional samples: <code>public/samples/</code></li>
+</ul>
+</body>
+</html>

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "samples": "node scripts/make-nycha-samples.mjs",
     "test": "node --experimental-strip-types --test tests/extract.test.ts",
     "deploy": "node scripts/publish-pages.mjs"
   },

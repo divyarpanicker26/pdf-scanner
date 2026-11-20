@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbound document processing made easier</title>
+<style>
+  :root {
+    --navy: #17284f;
+    --navy-soft: #e8ecf5;
+    --ink: #1c2129;
+    --muted: #5b6372;
+    --line: #d6dbe4;
+    --green: #1f6b4f;
+    --green-soft: #e3f1ea;
+    --amber: #8a5a00;
+    --amber-soft: #fbf0d9;
+    --paper: #ffffff;
+    --bg: #0f1a33;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+  }
+
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  .slide {
+    position: absolute;
+    width: 1280px;
+    height: 720px;
+    background: var(--paper);
+    padding: 64px 80px 56px;
+    display: none;
+    flex-direction: column;
+    transform-origin: center center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  }
+
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 64px;
+    line-height: 1.05;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 42px;
+    line-height: 1.12;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin-bottom: 30px;
+    max-width: 1040px;
+  }
+
+  p, li { font-size: 22px; line-height: 1.5; }
+  .lede { font-size: 26px; color: var(--muted); max-width: 900px; line-height: 1.45; }
+  .muted { color: var(--muted); }
+  .small { font-size: 17px; }
+
+  .footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+
+  /* Title slide */
+  .title-slide {
+    background: var(--navy);
+    color: white;
+    justify-content: center;
+  }
+  .title-slide .kicker { color: #9fd8bf; }
+  .title-slide .lede { color: #c9d3ea; margin-top: 26px; }
+  .title-slide .footer { color: #9aa7c4; border-color: #33467a; }
+
+  /* Lists */
+  ul.clean { list-style: none; display: grid; gap: 18px; }
+  ul.clean li { padding-left: 34px; position: relative; }
+  ul.clean li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 13px;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--green);
+  }
+  ul.warn li::before { background: var(--amber); }
+
+  /* Grids and cards */
+  .cols { display: grid; gap: 28px; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 26px 24px;
+    background: #fbfcfe;
+  }
+  .card h3 { font-size: 23px; margin-bottom: 10px; }
+  .card p { font-size: 19px; color: var(--muted); line-height: 1.45; }
+
+  .card.use { padding: 20px 22px; }
+  .card.use h3 { font-size: 21px; margin-bottom: 6px; }
+  .card.use p { font-size: 17px; }
+  .card.use.built { background: var(--green-soft); border-color: #b5dcc8; }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .card.use.built .badge { color: var(--green); }
+
+  .step-num {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: white;
+    font-weight: 700;
+    font-size: 19px;
+    margin-bottom: 16px;
+  }
+
+  /* Demo slide */
+  .demo {
+    display: grid;
+    grid-template-columns: 1fr 70px 1fr;
+    align-items: stretch;
+    gap: 0;
+  }
+  .doc {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 15px;
+  }
+  .doc-bar {
+    background: var(--navy);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 9px 16px;
+  }
+  .doc-body { padding: 14px 18px 16px; }
+  .doc-title { font-weight: 700; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid var(--navy); padding-bottom: 6px; }
+  .doc-row { display: grid; grid-template-columns: 170px 1fr; padding: 3px 0; }
+  .doc-row b { font-weight: 600; }
+  .arrow {
+    display: grid;
+    place-items: center;
+    font-size: 40px;
+    color: var(--green);
+  }
+  .json {
+    background: #101826;
+    color: #d7e3f4;
+    border-radius: 10px;
+    padding: 18px 20px;
+    font-family: Consolas, "Cascadia Mono", Menlo, monospace;
+    font-size: 15.5px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .json .k { color: #9cc9ff; }
+  .json .s { color: #b8e6a6; }
+
+  /* Flow slide */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  .flow .box {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 16px;
+    background: #fbfcfe;
+    position: relative;
+  }
+  .flow .box.tool { background: var(--green-soft); border-color: #b5dcc8; }
+  .flow .box.person { background: var(--navy-soft); border-color: #c4cde3; }
+  .flow .box h3 { font-size: 19px; margin-bottom: 8px; }
+  .flow .box p { font-size: 16px; color: var(--muted); line-height: 1.4; }
+  .flow .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    color: var(--muted);
+  }
+  .legend { display: flex; gap: 26px; margin-top: 26px; font-size: 17px; color: var(--muted); }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+  .legend .l-tool::before { background: var(--green-soft); border: 1px solid #b5dcc8; }
+  .legend .l-person::before { background: var(--navy-soft); border: 1px solid #c4cde3; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; font-size: 19px; }
+  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  tr.match td { background: var(--green-soft); }
+  table.compare th, table.compare td { padding: 8px 16px; }
+
+  .callout {
+    margin-top: 24px;
+    border-left: 5px solid var(--green);
+    background: var(--green-soft);
+    padding: 16px 22px;
+    border-radius: 0 10px 10px 0;
+    font-size: 19px;
+  }
+  .callout.amber { border-color: var(--amber); background: var(--amber-soft); }
+
+  .shot {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 430px;
+    background: #f7f4ee;
+  }
+  .shot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: top center;
+    display: block;
+  }
+
+  .big-link {
+    font-size: 24px;
+    color: var(--navy);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px solid #9fb0d6;
+  }
+
+  /* Navigation chrome */
+  .nav {
+    position: fixed;
+    bottom: 14px;
+    right: 18px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: #9aa7c4;
+    font-size: 14px;
+    z-index: 10;
+  }
+  .nav button {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .nav button:hover { background: rgba(255, 255, 255, 0.2); }
+  .progress {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 4px;
+    background: #4fbf8f;
+    transition: width 0.2s ease;
+    z-index: 10;
+  }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { background: white; }
+    .stage { position: static; display: block; }
+    .slide {
+      display: flex !important;
+      position: relative;
+      transform: none !important;
+      box-shadow: none;
+      page-break-after: always;
+      break-after: page;
+    }
+    .nav, .progress { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<main class="stage" id="stage">
+
+  <!-- 1. Title -->
+  <section class="slide title-slide">
+    <div class="kicker">Proposal to replace PSIGEN</div>
+    <h1>Inbound document<br>processing made easier</h1>
+    <p class="lede">A browser-based replacement for PSIGEN. It reads the PDFs NYCHA receives and pulls out the facts staff need, such as name, account number, address, and income, with nothing to install and no license to buy.</p>
+    <div class="footer"><span>Prepared by Divya Radhakrishnan</span><span>October 2026</span></div>
+  </section>
+
+  <!-- 2. Problem -->
+  <section class="slide">
+    <div class="kicker">Today</div>
+    <h2>Inbound documents depend on a licensed install</h2>
+    <div class="cols cols-2">
+      <ul class="clean">
+        <li>Residents, applicants, and partners send forms and supporting proof, often as PDFs or scans.</li>
+        <li>Today these documents are processed in PSIGEN, a licensed product that has to be installed on each computer.</li>
+        <li>A license limits how many people and machines can use it. Adding capacity means buying more licenses.</li>
+      </ul>
+      <div class="card">
+        <h3>What that costs</h3>
+        <p style="margin-bottom:14px">Every new workstation, upgrade, or replacement computer needs an install and a license.</p>
+        <p style="margin-bottom:14px">Once the licenses are used up, a new staff member or office has to wait.</p>
+        <p>Staff who move between offices or work remotely are tied to specific machines.</p>
+      </div>
+    </div>
+    <div class="footer"><span>Current process</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 3. What it does -->
+  <section class="slide">
+    <div class="kicker">The tool</div>
+    <h2>Open a PDF, choose the fields, get clean data</h2>
+    <div class="cols cols-3">
+      <div class="card">
+        <div class="step-num">1</div>
+        <h3>Open the document</h3>
+        <p>Drag a PDF into the browser. Typed forms are read directly. Scanned pages are read with text recognition (OCR).</p>
+      </div>
+      <div class="card">
+        <div class="step-num">2</div>
+        <h3>Name the fields</h3>
+        <p>List the labels to look for, such as "Case Number" or "Income". Staff set this up once per document type. No programming needed.</p>
+      </div>
+      <div class="card">
+        <div class="step-num">3</div>
+        <h3>Review and copy</h3>
+        <p>The values appear as structured data. The tool flags any field it could not find. Staff check and copy or download the result.</p>
+      </div>
+    </div>
+    <div class="callout">Nothing in the tool is specific to one process. Any typed or scanned PDF with labeled fields can be set up the same way.</div>
+    <div class="footer"><span>How it works</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- Comparison -->
+  <section class="slide">
+    <div class="kicker">PSIGEN and the new tool</div>
+    <h2>Same job, without the install or the license</h2>
+    <table class="compare">
+      <thead>
+        <tr><th style="width:24%"></th><th style="width:36%">PSIGEN today</th><th>Browser tool</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>License</b></td><td>A paid license, with a limit on users and machines</td><td>No license to buy or assign.</td></tr>
+        <tr><td><b>Getting started</b></td><td>Software installed on each computer</td><td>Open a web address. Nothing to install.</td></tr>
+        <tr><td><b>Where staff can work</b></td><td>Only on machines with PSIGEN set up</td><td>Any NYCHA computer with a modern browser</td></tr>
+        <tr><td><b>Updates</b></td><td>Applied to each installation</td><td>Published once. Everyone gets it the next time they open the page.</td></tr>
+        <tr><td><b>New document types</b></td><td class="muted">To confirm with the PSIGEN team</td><td>Staff add field labels on screen. No developer needed.</td></tr>
+        <tr><td><b>Where documents go</b></td><td class="muted">To confirm with the PSIGEN team</td><td>Read inside the browser. Not uploaded to a server.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">The aim is to replace PSIGEN, not run two systems. A pilot confirms the new tool covers what staff use today.</div>
+    <div class="footer"><span>Comparison</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 4. Use cases -->
+  <section class="slide">
+    <div class="kicker">Where it applies</div>
+    <h2>One tool for many inbound processes</h2>
+    <div class="cols cols-3">
+      <div class="card use built">
+        <span class="badge">Built and demonstrated</span>
+        <h3>Annual recertification</h3>
+        <p>Recertification form, income affidavit, and asset declaration.</p>
+      </div>
+      <div class="card use">
+        <span class="badge">Candidate</span>
+        <h3>Applications</h3>
+        <p>Applicant name, household size, contact details, and income from application forms.</p>
+      </div>
+      <div class="card use">
+        <span class="badge">Candidate</span>
+        <h3>Income and benefit proof</h3>
+        <p>Pay stubs, benefit letters, and employer statements.</p>
+      </div>
+      <div class="card use">
+        <span class="badge">Candidate</span>
+        <h3>Household change requests</h3>
+        <p>Requests to add or remove members, or to transfer apartments.</p>
+      </div>
+      <div class="card use">
+        <span class="badge">Candidate</span>
+        <h3>Vendor and contractor paperwork</h3>
+        <p>Invoice numbers, amounts, dates, and vendor names.</p>
+      </div>
+      <div class="card use">
+        <span class="badge">Candidate</span>
+        <h3>Resident correspondence</h3>
+        <p>Account number, address, and date from letters and notices sent in.</p>
+      </div>
+    </div>
+    <p class="small muted" style="margin-top:20px">Candidates are examples to confirm with each business area. Each needs its own field setup and testing.</p>
+    <div class="footer"><span>Use cases</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 4. Demo -->
+  <section class="slide">
+    <div class="kicker">Worked example: annual recertification</div>
+    <h2>From form to structured data</h2>
+    <div class="demo">
+      <div class="doc">
+        <div class="doc-bar">SAMPLE ONLY &nbsp;-&nbsp; NOT AN OFFICIAL NYCHA FORM</div>
+        <div class="doc-body">
+          <div class="doc-title">Annual Recertification of Family Income and Composition</div>
+          <div class="doc-row"><b>Development:</b><span>Sample Houses</span></div>
+          <div class="doc-row"><b>Name:</b><span>Maria Santos</span></div>
+          <div class="doc-row"><b>Case Number:</b><span>NYC-0001842</span></div>
+          <div class="doc-row"><b>Account Number:</b><span>NYC-0001842</span></div>
+          <div class="doc-row"><b>Address:</b><span>100 Sample Court<br>Apartment 4B<br>Brooklyn, NY 11201</span></div>
+          <div class="doc-row"><b>Household Size:</b><span>3</span></div>
+          <div class="doc-row"><b>Income:</b><span>$3,260.00</span></div>
+          <div class="doc-row"><b>Document Date:</b><span>September 18, 2026</span></div>
+        </div>
+      </div>
+      <div class="arrow">&rarr;</div>
+<div class="json">{
+  <span class="k">"name"</span>: <span class="s">"Maria Santos"</span>,
+  <span class="k">"caseNumber"</span>: <span class="s">"NYC-0001842"</span>,
+  <span class="k">"accountNumber"</span>: <span class="s">"NYC-0001842"</span>,
+  <span class="k">"development"</span>: <span class="s">"Sample Houses"</span>,
+  <span class="k">"address"</span>: <span class="s">"100 Sample Court,
+    Apartment 4B, Brooklyn, NY 11201"</span>,
+  <span class="k">"householdSize"</span>: <span class="s">"3"</span>,
+  <span class="k">"income"</span>: <span class="s">"$3,260.00"</span>,
+  <span class="k">"documentDate"</span>: <span class="s">"September 18, 2026"</span>
+}</div>
+    </div>
+    <p class="small muted" style="margin-top:20px">Actual output from the tool on a fictional sample form. The three-line address is joined into one value automatically. Any other document type works the same way once its fields are set up.</p>
+    <div class="footer"><span>Worked example</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 5. Screenshot -->
+  <section class="slide">
+    <div class="kicker">What staff see</div>
+    <h2>Document, fields, and result on one screen</h2>
+    <div class="cols" style="grid-template-columns: 1.35fr 1fr; align-items:start">
+      <div class="shot"><img src="assets/app.png" alt="The PDF field extractor with the sample recertification form loaded"></div>
+      <ul class="clean">
+        <li>The page preview lets staff check each value against the original.</li>
+        <li>Each document type has its own field setup, which staff can edit on screen.</li>
+        <li>Missing values are listed by name, so nothing is silently skipped.</li>
+        <li>Runs in a standard web browser. Nothing to install.</li>
+      </ul>
+    </div>
+    <div class="footer"><span>Screenshot of the working prototype</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 6. Three documents -->
+  <section class="slide">
+    <div class="kicker">Worked example, continued</div>
+    <h2>Several documents, one set of facts</h2>
+    <table>
+      <thead>
+        <tr><th>Document</th><th>Fields pulled out</th><th>Monthly income shown</th></tr>
+      </thead>
+      <tbody>
+        <tr class="match"><td>Annual recertification</td><td>Name, case and account number, development, address, household size, income, date</td><td class="num">$3,260.00</td></tr>
+        <tr class="match"><td>Affidavit of income</td><td>Employer, gross wages ($2,840.00), SSI ($420.00), public assistance, total income</td><td class="num">$3,260.00</td></tr>
+        <tr><td>Declaration of assets</td><td>Bank name, account type, checking balance ($1,180.00), savings balance ($640.00)</td><td class="num muted">Not applicable</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">Because every document becomes the same kind of data, values can be lined up across documents. Here the income on the recertification form matches the affidavit total. The same check applies to any process with several related documents.</div>
+    <div class="footer"><span>Fictional sample household</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 7. Workflow -->
+  <section class="slide">
+    <div class="kicker">Where it fits</div>
+    <h2>The tool does the copying. Staff still make every decision.</h2>
+    <div class="flow">
+      <div class="box">
+        <div class="tag">Sender</div>
+        <h3>Document arrives</h3>
+        <p>From a resident, applicant, or vendor, online, by mail, or in person, and saved as PDF.</p>
+      </div>
+      <div class="box tool">
+        <div class="tag">Tool</div>
+        <h3>Read the PDF</h3>
+        <p>Text is read from each page. Scanned pages use OCR.</p>
+      </div>
+      <div class="box tool">
+        <div class="tag">Tool</div>
+        <h3>Pull the fields</h3>
+        <p>Values are matched to that document type's setup. Missing ones are flagged.</p>
+      </div>
+      <div class="box person">
+        <div class="tag">Staff</div>
+        <h3>Verify</h3>
+        <p>Check each value against the page preview and correct as needed.</p>
+      </div>
+      <div class="box person">
+        <div class="tag">Staff</div>
+        <h3>Record</h3>
+        <p>Enter or paste the checked values into the system of record.</p>
+      </div>
+    </div>
+    <div class="legend"><span class="l-tool">New step handled by the tool</span><span class="l-person">Staff step, unchanged in authority</span></div>
+    <div class="callout" style="margin-top:34px">Nothing reaches a NYCHA system without a staff member checking it first. The tool removes the copying, not the review.</div>
+    <div class="footer"><span>Inbound workflow</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 8. Benefits -->
+  <section class="slide">
+    <div class="kicker">Why it helps</div>
+    <h2>What NYCHA would gain</h2>
+    <div class="cols cols-3">
+      <div class="card"><h3>No install, no license</h3><p>Runs in a web browser, so there is no PSIGEN install to manage and no license limit on who can use it.</p></div>
+      <div class="card"><h3>Work from any desk</h3><p>Staff are no longer tied to the machines where the software is set up.</p></div>
+      <div class="card"><h3>Simpler updates</h3><p>A change is published once and reaches every user. No per-computer upgrades.</p></div>
+      <div class="card"><h3>One tool, many processes</h3><p>A new document type needs a new field setup, not a new system. No developer needed.</p></div>
+      <div class="card"><h3>Consistent data</h3><p>Every office gets the same field names in the same format for the same document type.</p></div>
+      <div class="card"><h3>Documents stay local</h3><p>The PDF is read inside the browser and is not uploaded to a server.</p></div>
+    </div>
+    <div class="footer"><span>Benefits</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 9. Privacy -->
+  <section class="slide">
+    <div class="kicker">Privacy and security</div>
+    <h2>Built so documents never leave the computer</h2>
+    <div class="cols cols-2">
+      <div>
+        <h3 style="font-size:24px;margin-bottom:16px">How it works today</h3>
+        <ul class="clean">
+          <li>The PDF is opened and read entirely inside the browser.</li>
+          <li>No document or extracted value is sent to a server.</li>
+          <li>Only the field setup is saved, in that browser.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:24px;margin-bottom:16px">Needed before real documents</h3>
+        <ul class="clean warn">
+          <li>Host on NYCHA-approved infrastructure. The current public site is for demos only.</li>
+          <li>Bundle the OCR language files locally. Today they download from the internet on first use.</li>
+          <li>Complete an IT security and privacy review.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer"><span>Privacy</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 10. Limits -->
+  <section class="slide">
+    <div class="kicker">Honest limits</div>
+    <h2>What the prototype does not do yet</h2>
+    <div class="cols cols-2">
+      <ul class="clean warn">
+        <li>Tested only on fictional recertification samples, not real documents.</li>
+        <li>Each new document type needs its field setup built and tested.</li>
+        <li>Finds values by their labels. Unusual layouts may need a custom pattern.</li>
+        <li>OCR is English only and is not reliable on handwriting.</li>
+      </ul>
+      <ul class="clean warn">
+        <li>Does not connect to NYCHA systems. Staff still paste values in.</li>
+        <li>No user accounts or audit trail.</li>
+        <li>Does not make decisions, such as eligibility or rent.</li>
+        <li>Not yet compared feature by feature with PSIGEN, for example scanning and exports.</li>
+      </ul>
+    </div>
+    <div class="callout amber">These are the questions a pilot should answer before PSIGEN is replaced anywhere.</div>
+    <div class="footer"><span>Limits</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 11. Pilot -->
+  <section class="slide">
+    <div class="kicker">Proposed next step</div>
+    <h2>Start with one process, then prove it carries over</h2>
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>Scope</h3>
+        <p style="margin-bottom:12px">One office and a few staff, starting with recertification, since its setups already exist.</p>
+        <p style="margin-bottom:12px">Then add a second document type from another process to test reuse.</p>
+        <p style="margin-bottom:12px">Staff run the same documents through PSIGEN and the new tool, side by side.</p>
+        <p>Approved hosting and real forms, after the security review.</p>
+      </div>
+      <div class="card">
+        <h3>What we measure</h3>
+        <p style="margin-bottom:12px">Minutes per document, compared with PSIGEN.</p>
+        <p style="margin-bottom:12px">Share of fields extracted correctly, compared with PSIGEN.</p>
+        <p style="margin-bottom:12px">How often staff had to correct a value.</p>
+        <p style="margin-bottom:12px">How long a new document type takes to set up.</p>
+        <p>Staff feedback on ease of use.</p>
+      </div>
+    </div>
+    <div class="callout">At the end, leadership decides whether to start replacing PSIGEN, adjust, or stop, based on measured results.</div>
+    <div class="footer"><span>Pilot</span><span class="page-num"></span></div>
+  </section>
+
+  <!-- 12. Ask -->
+  <section class="slide">
+    <div class="kicker">The ask</div>
+    <h2>What we need from leadership</h2>
+    <ul class="clean" style="max-width:1000px">
+      <li><b>Approval</b> to run the pilot.</li>
+      <li><b>A partner office</b> willing to try it on recertification and one more document type.</li>
+      <li><b>PSIGEN users and owners</b> to list the features staff rely on today, and the documents that cost the most time.</li>
+      <li><b>An IT and security contact</b> to review hosting and privacy.</li>
+      <li><b>A few de-identified real documents</b> of each type so field setups match what NYCHA actually receives.</li>
+    </ul>
+    <div style="margin-top:44px">
+      <p class="muted small" style="margin-bottom:6px">Try the public demo with sample forms</p>
+      <a class="big-link" href="https://divyarpanicker26.github.io/pdf-scanner/">divyarpanicker26.github.io/pdf-scanner</a>
+    </div>
+    <div class="footer"><span>Thank you</span><span class="page-num"></span></div>
+  </section>
+
+</main>
+
+<div class="nav">
+  <button type="button" id="prev" aria-label="Previous slide">&larr;</button>
+  <span id="count"></span>
+  <button type="button" id="next" aria-label="Next slide">&rarr;</button>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'))
+  const count = document.getElementById('count')
+  const progress = document.getElementById('progress')
+  let index = Math.min(Math.max(parseInt(location.hash.slice(1), 10) - 1 || 0, 0), slides.length - 1)
+
+  slides.forEach((slide, i) => {
+    const slot = slide.querySelector('.page-num')
+    if (slot) slot.textContent = String(i + 1)
+  })
+
+  function fit() {
+    const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.94
+    for (const slide of slides) slide.style.transform = `scale(${scale})`
+  }
+
+  function show(next) {
+    index = Math.min(Math.max(next, 0), slides.length - 1)
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === index))
+    count.textContent = `${index + 1} / ${slides.length}`
+    progress.style.width = `${((index + 1) / slides.length) * 100}%`
+    history.replaceState(null, '', `#${index + 1}`)
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(index + 1) }
+    if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(index - 1) }
+    if (event.key === 'Home') show(0)
+    if (event.key === 'End') show(slides.length - 1)
+    if (event.key === 'f') document.documentElement.requestFullscreen?.()
+  })
+  document.getElementById('prev').addEventListener('click', () => show(index - 1))
+  document.getElementById('next').addEventListener('click', () => show(index + 1))
+  window.addEventListener('resize', fit)
+
+  fit()
+  show(index)
+</script>
+</body>
+</html>

@@ -42,6 +42,21 @@ export function extractValues(text: string, fields: FieldSpec[]): ExtractionResu
   return { values, fieldErrors }
 }
 
+export function applyOverrides(
+  values: Record<string, string | null>,
+  fields: FieldSpec[],
+  overrides: Record<string, string>,
+): Record<string, string | null> {
+  const next = { ...values }
+  for (const spec of fields) {
+    const key = spec.key.trim()
+    const override = overrides[spec.id]?.replace(/\s+/g, ' ').trim()
+    if (!key || !override || !(key in next)) continue
+    next[key] = override
+  }
+  return next
+}
+
 function valueAfterLabel(text: string, label: string, multiline: boolean): string | null {
   const lines = text.split(/\r?\n/)
   const labelPattern = new RegExp(

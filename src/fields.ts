@@ -12,6 +12,93 @@ export function suggestedFields(): FieldSpec[] {
   ]
 }
 
+export function recertificationFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('caseNumber', 'Case Number', false),
+    field('accountNumber', 'Account Number', false),
+    field('development', 'Development', false),
+    field('address', 'Address', true),
+    field('householdSize', 'Household Size', false),
+    field('income', 'Income', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function incomeAffidavitFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('caseNumber', 'Case Number', false),
+    field('address', 'Address', true),
+    field('employer', 'Employer', false),
+    field('grossWages', 'Gross Wages', false),
+    field('ssiAmount', 'SSI Amount', false),
+    field('publicAssistance', 'Public Assistance', false),
+    field('income', 'Income', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function assetDeclarationFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('caseNumber', 'Case Number', false),
+    field('address', 'Address', true),
+    field('bankName', 'Bank Name', false),
+    field('accountType', 'Account Type', false),
+    field('balance', 'Balance', false),
+    field('savingsBalance', 'Savings Balance', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function applicationFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('applicationNumber', 'Application Number', false),
+    field('address', 'Address', true),
+    field('householdSize', 'Household Size', false),
+    field('income', 'Income', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function householdChangeFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('caseNumber', 'Case Number', false),
+    field('address', 'Address', true),
+    field('requestType', 'Request Type', false),
+    field('memberName', 'Member Name', false),
+    field('relation', 'Relation', false),
+    field('householdSize', 'Household Size', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function vendorInvoiceFields(): FieldSpec[] {
+  return [
+    field('vendorName', 'Vendor Name', false),
+    field('invoiceNumber', 'Invoice Number', false),
+    field('purchaseOrder', 'Purchase Order', false),
+    field('development', 'Development', false),
+    field('invoiceAmount', 'Invoice Amount', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
+export function payStatementFields(): FieldSpec[] {
+  return [
+    field('name', 'Name', false),
+    field('employer', 'Employer', false),
+    field('address', 'Address', true),
+    field('payPeriod', 'Pay Period', false),
+    field('grossWages', 'Gross Wages', false),
+    field('netPay', 'Net Pay', false),
+    field('documentDate', 'Document Date', false),
+  ]
+}
+
 export function loadFields(): FieldSpec[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)

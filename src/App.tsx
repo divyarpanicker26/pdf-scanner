@@ -1,11 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
-import { extractValues } from './extract.ts'
-import { clearSavedFields, loadFields, saveFields, suggestedFields } from './fields.ts'
+import { applyOverrides, extractValues } from './extract.ts'
+import {
+  applicationFields,
+  assetDeclarationFields,
+  clearSavedFields,
+  householdChangeFields,
+  incomeAffidavitFields,
+  loadFields,
+  payStatementFields,
+  recertificationFields,
+  saveFields,
+  suggestedFields,
+  vendorInvoiceFields,
+} from './fields.ts'
 import { readPdf } from './pdfText.ts'
 import type { FieldSpec } from './types.ts'
 
 const MAX_BYTES = 25 * 1024 * 1024
+
+const DEMO_DOCUMENTS = [
+  { file: 'sample.pdf', label: 'Simple form', fields: suggestedFields },
+  { file: 'samples/nycha-annual-recertification.pdf', label: 'Recertification', fields: recertificationFields },
+  { file: 'samples/nycha-affidavit-of-income.pdf', label: 'Income affidavit', fields: incomeAffidavitFields },
+  { file: 'samples/nycha-asset-declaration.pdf', label: 'Asset declaration', fields: assetDeclarationFields },
+  { file: 'samples/housing-application.pdf', label: 'Housing application', fields: applicationFields },
+  { file: 'samples/household-change-request.pdf', label: 'Household change', fields: householdChangeFields },
+  { file: 'samples/vendor-invoice.pdf', label: 'Vendor invoice', fields: vendorInvoiceFields },
+  { file: 'samples/earnings-statement.pdf', label: 'Pay statement', fields: payStatementFields },
+]
 
 type DocumentState = {
   fileName: string
@@ -23,6 +46,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [overrides, setOverrides] = useState<Record<string, string>>({})
   const requestId = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -35,19 +59,27 @@ export default function App() {
     [documentState, fields],
   )
 
+  const values = useMemo(
+    () => applyOverrides(extraction.values, fields, overrides),
+    [extraction.values, fields, overrides],
+  )
+
   const payload = useMemo(() => {
     if (!documentState) return null
     return {
       fileName: documentState.fileName,
       pageCount: documentState.pageCount,
       method: documentState.method,
-      values: extraction.values,
+      values,
     }
-  }, [documentState, extraction.values])
+  }, [documentState, values])
 
   const json = payload ? JSON.stringify(payload, null, 2) : ''
-  const foundCount = Object.values(extraction.values).filter(Boolean).length
-  const valueCount = Object.keys(extraction.values).length
+  const foundCount = Object.values(values).filter(Boolean).length
+  const valueCount = Object.keys(values).length
+  const overriddenKeys = fields
+    .filter((field) => field.key.trim() && overrides[field.id]?.trim())
+    .map((field) => field.key.trim())
 
   async function openFile(file: File) {
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
@@ -64,6 +96,7 @@ export default function App() {
     setBusy(true)
     setError('')
     setCopied(false)
+    setOverrides({})
     setStatus(`Reading ${file.name}`)
 
     try {
@@ -87,14 +120,20 @@ export default function App() {
     }
   }
 
-  async function openSample() {
+  async function openSample(fileName: string, nextFields?: FieldSpec[]) {
     setError('')
-    setStatus('Loading the sample form')
+    setStatus(`Loading ${fileName}`)
+    if (nextFields) {
+      setCopied(false)
+      setOverrides({})
+      setFields(nextFields)
+    }
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}sample.pdf`)
+      const response = await fetch(`${import.meta.env.BASE_URL}${fileName}`)
       if (!response.ok) throw new Error('The sample PDF could not be loaded.')
       const blob = await response.blob()
-      await openFile(new File([blob], 'sample.pdf', { type: 'application/pdf' }))
+      const baseName = fileName.slice(fileName.lastIndexOf('/') + 1)
+      await openFile(new File([blob], baseName, { type: 'application/pdf' }))
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The sample PDF could not be loaded.')
       setStatus('')
@@ -155,14 +194,36 @@ export default function App() {
             }}
           >
             <strong>Drop a PDF here</strong>
-            <span className="hint">Text-based forms are read directly. Sparse or scanned pages use English OCR in the browser.</span>
+            <span className="hint">
+              Text-based forms are read directly. Sparse or scanned pages use English OCR in the browser.
+              The demo PDFs are fictional inbound documents, including recertification, applications, and vendor paperwork.
+            </span>
             <div className="button-row">
               <button className="file-button" type="button" onClick={() => fileInput.current?.click()} disabled={busy}>
                 Choose PDF
               </button>
-              <button className="ghost" type="button" onClick={() => void openSample()} disabled={busy}>
-                Open sample
-              </button>
+              <label className="demo-picker">
+                Demo PDF
+                <select
+                  aria-label="Open a demo PDF"
+                  disabled={busy}
+                  defaultValue=""
+                  onChange={(event) => {
+                    const chosen = DEMO_DOCUMENTS.find((item) => item.file === event.target.value)
+                    event.target.value = ''
+                    if (chosen) void openSample(chosen.file, chosen.fields())
+                  }}
+                >
+                  <option value="" disabled>
+                    Choose a sample
+                  </option>
+                  {DEMO_DOCUMENTS.map((item) => (
+                    <option key={item.file} value={item.file}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <input
               ref={fileInput}
@@ -203,6 +264,7 @@ export default function App() {
               onClick={() => {
                 clearSavedFields()
                 setCopied(false)
+                setOverrides({})
                 setFields(suggestedFields())
               }}
             >
@@ -244,6 +306,26 @@ export default function App() {
                     onChange={(event) => updateField(field.id, { pattern: event.target.value })}
                   />
                 </label>
+                <label>
+                  Override value, optional
+                  <input
+                    type="text"
+                    value={overrides[field.id] ?? ''}
+                    placeholder={extraction.values[field.key.trim()] ?? 'Leave empty to keep the PDF value'}
+                    aria-label={`Override value for ${field.key || 'new field'}`}
+                    onChange={(event) => {
+                      setCopied(false)
+                      const next = event.target.value
+                      setOverrides((current) => {
+                        if (!next) {
+                          const { [field.id]: _, ...rest } = current
+                          return rest
+                        }
+                        return { ...current, [field.id]: next }
+                      })
+                    }}
+                  />
+                </label>
                 <div className="field-options">
                   <label className="check">
                     <input
@@ -258,6 +340,10 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setCopied(false)
+                      setOverrides((current) => {
+                        const { [field.id]: _, ...rest } = current
+                        return rest
+                      })
                       setFields((current) => current.filter((item) => item.id !== field.id))
                     }}
                   >
@@ -286,7 +372,7 @@ export default function App() {
             </button>
           </div>
           <p className="help">
-            With no regular expression, the value is the text after the label. A regex replaces that rule, and its first capture group becomes the JSON value.
+            With no regular expression, the value is the text after the label. A regex picks a piece of that text. Use Override to type a different value than the PDF.
           </p>
         </section>
       </div>
@@ -310,7 +396,12 @@ export default function App() {
                 {foundCount} of {valueCount} fields found
               </span>
               <span className="pill">{documentState?.method === 'text+ocr' ? 'Text and OCR' : 'Text layer'}</span>
-              {Object.entries(extraction.values)
+              {overriddenKeys.map((key) => (
+                <span className="pill" key={`overridden-${key}`}>
+                  {key} overridden
+                </span>
+              ))}
+              {Object.entries(values)
                 .filter(([, value]) => !value)
                 .map(([key]) => (
                   <span className="pill missing" key={key}>
